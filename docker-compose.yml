@@ -1,0 +1,15 @@
+version: "3.7"
+services:
+
+ tuya:
+    build: .
+    restart: unless-stopped
+    hostname: tuya-exporter
+    working_dir: /tuya
+    user: 1000:1000
+    volumes:
+      - .:/tuya
+    ports:
+      - 9877:9877
+      - 6667:6667/udp
+
