@@ -41,22 +41,28 @@ class TuyaExporter:
         exporter_port = int(os.environ.get("EXPORTER_PORT", "9877"))
         start_http_server(exporter_port)
         while True:
-            self.read_data('termo')
-            self.create_gauge_for_metric()
-            self.set_value()
+            for device in self.devices.keys():
+                if not self.devices[device].get('ip'):
+                    continue
+                self.read_data(device)
+                #self.create_gauge_for_metric()
+                #self.set_value()
             time.sleep(5)
 
     def read_data(self, device_name):
         device_details = self.devices[device_name]
         device = tinytuya.OutletDevice(device_details['id'], device_details['ip'], device_details['key'])
         device.set_version(3.3)
+        device.set_socketRetryLimit(1)
+        device.set_socketTimeout(1)
         device.heartbeat(True)
         device.updatedps()
         data = device.status()
+        print(f"{device_name}: {data}")
         if 'dps' in data:
            kwh = self.calc_kwh(device_name, data['dps'])
         else:
-           print(f"Error reading {device_name}: {data}")
+           print(f"Error reading {device_name}")
         return data
 
     def calc_kwh(self, device_name, data):
@@ -65,14 +71,16 @@ class TuyaExporter:
             device_details['total_kwh'] =  data[device_details['kwh']]
         if not device_details.get('previous_kwh'):
             device_details['previous_kwh'] = data[device_details['wats']]/10
-            #device_details['previous_kwh'] = 1000
             stored_kwh = db.get(device_name)
             device_details['total_kwh'] = stored_kwh and stored_kwh or 0
             device_details['t0'] = time.time()
         else:
-            device_details['read_kwh'] = data[device_details['wats']]/10 
-            #device_details['read_kwh'] = 1000
-            av = (device_details['previous_kwh'] + device_details['read_kwh']) / 2.0
+            try:
+                device_details['read_kwh'] = data[device_details['wats']]/10 
+                av = (device_details['previous_kwh'] + device_details['read_kwh']) / 2.0
+            except e:
+                print(f"ERROR {data}")
+                raise(f"ERROR {data}")
             t = time.time() - device_details['t0'] 
             device_details['t0'] = time.time()
             power = (av / 3600) * t
