@@ -1,0 +1,5 @@
+The idea is, actually, to write a Prometheus exporter for my tuya devices so
+I can see the consumption charts in a beauitiful Graphana dashboard without
+the need of using  the App on my phone.
+
+In a veeeeery early state ... 
